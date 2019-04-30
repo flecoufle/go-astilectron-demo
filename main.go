@@ -40,35 +40,54 @@ func main() {
 			AppIconDefaultPath: "resources/icon.png",
 		},
 		Debug: *debug,
-		MenuOptions: []*astilectron.MenuItemOptions{{
-			Label: astilectron.PtrStr("File"),
-			SubMenu: []*astilectron.MenuItemOptions{
-				{
-					Label: astilectron.PtrStr("About"),
-					OnClick: func(e astilectron.Event) (deleteListener bool) {
-						if err := bootstrap.SendMessage(w, "about", htmlAbout, func(m *bootstrap.MessageIn) {
-							// Unmarshal payload
-							var s string
-							if err := json.Unmarshal(m.Payload, &s); err != nil {
-								astilog.Error(errors.Wrap(err, "unmarshaling payload failed"))
-								return
+		MenuOptions: []*astilectron.MenuItemOptions{
+			{
+				Label: astilectron.PtrStr("File"),
+				SubMenu: []*astilectron.MenuItemOptions{
+					{
+						Label: astilectron.PtrStr("About"),
+						OnClick: func(e astilectron.Event) (deleteListener bool) {
+							if err := bootstrap.SendMessage(w, "about", htmlAbout, func(m *bootstrap.MessageIn) {
+								// Unmarshal payload
+								var s string
+								if err := json.Unmarshal(m.Payload, &s); err != nil {
+									astilog.Error(errors.Wrap(err, "unmarshaling payload failed"))
+									return
+								}
+								astilog.Infof("About modal has been displayed and payload is %s!", s)
+							}); err != nil {
+								astilog.Error(errors.Wrap(err, "sending about event failed"))
 							}
-							astilog.Infof("About modal has been displayed and payload is %s!", s)
-						}); err != nil {
-							astilog.Error(errors.Wrap(err, "sending about event failed"))
-						}
-						return
+							return
+						},
+					},
+					{
+						Role: astilectron.MenuItemRoleQuit,
+					},
+					{
+						Role: astilectron.MenuItemRoleToggleDevTools,
 					},
 				},
-				{Role: astilectron.MenuItemRoleClose},
 			},
-		}},
+			{
+				Role: astilectron.MenuItemRoleEditMenu,
+			},
+			{
+				Role: astilectron.MenuItemRoleWindowMenu,
+			},
+		},
 		OnWait: func(_ *astilectron.Astilectron, ws []*astilectron.Window, _ *astilectron.Menu, _ *astilectron.Tray, _ *astilectron.Menu) error {
 			w = ws[0]
 			go func() {
-				time.Sleep(5 * time.Second)
+				time.Sleep(2 * time.Second)
 				if err := bootstrap.SendMessage(w, "check.out.menu", "Don't forget to check out the menu!"); err != nil {
 					astilog.Error(errors.Wrap(err, "sending check.out.menu event failed"))
+				}
+			}()
+			go func() {
+				time.Sleep(4 * time.Second)
+				if err := bootstrap.SendMessage(w, "news", "Check news !"); err != nil {
+					astilog.Error(errors.Wrap(err, "sending news failed"))
 				}
 			}()
 			return nil
