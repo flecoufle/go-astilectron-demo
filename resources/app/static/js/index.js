@@ -74,9 +74,12 @@ let index = {
             switch (message.name) {
                 case "about":
                     index.about(message.payload);
-                    return {payload: "payload"};
+                    return {payload: message.payload};
                     break;
                 case "check.out.menu":
+                    asticode.notifier.info(message.payload);
+                    break;
+                case "news":
                     asticode.notifier.info(message.payload);
                     break;
             }
