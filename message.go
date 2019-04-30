@@ -14,6 +14,20 @@ import (
 	"github.com/asticode/go-astilectron-bootstrap"
 )
 
+func DirSize(path string) (int64, error) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	return size, err
+}
+
 // handleMessages handles messages
 func handleMessages(_ *astilectron.Window, m bootstrap.MessageIn) (payload interface{}, err error) {
 	switch m.Name {
@@ -52,6 +66,27 @@ type Dir struct {
 	Path string `json:"path"`
 }
 
+// Prepare fileSize
+func formatFileSize(filesSize int64) (stringSize string) {
+	if filesSize < 1e3 {
+		stringSize = strconv.Itoa(int(filesSize)) + "o"
+	} else if filesSize < 1e6 {
+		stringSize = strconv.FormatFloat(float64(filesSize)/float64(1024), 'f', 0, 64) + "Ko"
+	} else if filesSize < 1e9 {
+		stringSize = strconv.FormatFloat(float64(filesSize)/float64(1024*1024), 'f', 0, 64) + "Mo"
+	} else {
+		stringSize = strconv.FormatFloat(float64(filesSize)/float64(1024*1024*1024), 'f', 0, 64) + "Go"
+	}
+	return
+}
+
+var KB = uint64(1024)
+
+func calcDirSize(p string) int64 {
+	v, _ := DirSize(p)
+	return v
+}
+
 // explore explores a path.
 // If path is empty, it explores the user's home directory
 func explore(path string) (e Exploration, err error) {
@@ -61,7 +96,7 @@ func explore(path string) (e Exploration, err error) {
 		if u, err = user.Current(); err != nil {
 			return
 		}
-		path = u.HomeDir
+		path = filepath.Join(filepath.Join(u.HomeDir, "Documents"), "Perso")
 	}
 
 	// Read dir
@@ -90,29 +125,22 @@ func explore(path string) (e Exploration, err error) {
 	var filesSize int64
 	for _, f := range files {
 		if f.IsDir() {
+			dirSize := calcDirSize(filepath.Join(path, f.Name()))
 			e.Dirs = append(e.Dirs, Dir{
-				Name: f.Name(),
+				Name: f.Name() + " (" + formatFileSize(dirSize) + ")",
 				Path: filepath.Join(path, f.Name()),
 			})
 		} else {
 			var s = int(f.Size())
 			sizes = append(sizes, s)
-			sizesMap[s] = append(sizesMap[s], f.Name())
+			sizesMap[s] = append(sizesMap[s], f.Name()+" ("+formatFileSize(f.Size())+")")
 			e.FilesCount++
 			filesSize += f.Size()
 		}
 	}
 
 	// Prepare files size
-	if filesSize < 1e3 {
-		e.FilesSize = strconv.Itoa(int(filesSize)) + "b"
-	} else if filesSize < 1e6 {
-		e.FilesSize = strconv.FormatFloat(float64(filesSize)/float64(1024), 'f', 0, 64) + "kb"
-	} else if filesSize < 1e9 {
-		e.FilesSize = strconv.FormatFloat(float64(filesSize)/float64(1024*1024), 'f', 0, 64) + "Mb"
-	} else {
-		e.FilesSize = strconv.FormatFloat(float64(filesSize)/float64(1024*1024*1024), 'f', 0, 64) + "Gb"
-	}
+	e.FilesSize = formatFileSize(filesSize)
 
 	// Prepare files chart
 	sort.Ints(sizes)
